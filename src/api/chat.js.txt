@@ -1,0 +1,66 @@
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Only POST allowed" });
+  }
+
+  try {
+    const { scenario, persona, difficulty, objection, messages, userMessage } = req.body;
+
+    const response = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: `
+You are a realistic sales objection training simulator.
+
+Scenario: ${scenario}
+Persona: ${persona}
+Difficulty: ${difficulty}
+Starting objection: ${objection}
+
+Rules:
+- Stay in character as the customer
+- Push back on weak questions
+- Only reveal problems if the seller asks strong questions
+- Do NOT help the seller unless they earn it
+
+After every seller message, respond with:
+
+CUSTOMER:
+[realistic answer]
+
+COACH:
+Score: [1-10]
+
+Critique:
+[what was good or bad]
+
+Stronger version:
+[better question]
+
+Guidance:
+[what to do next]
+
+Listen for:
+[key signals]
+
+Best next move:
+[next step]
+
+Conversation so far:
+${messages.map(m => `${m.role}: ${m.text}`).join("\n")}
+
+Seller just said:
+${userMessage}
+`
+    });
+
+    res.status(200).json({ reply: response.output_text });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+}
